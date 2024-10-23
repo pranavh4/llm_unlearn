@@ -5,3 +5,5 @@ myenv/*
 models/*
 logs/*
 data/*
+.venv/*
+.python-version

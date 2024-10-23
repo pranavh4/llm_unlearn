@@ -10,6 +10,7 @@ The dataset used in is `PKU-SafeRLHF`. Model support OPT-1.3B, OPT-2.7B, and Lla
 """
 import argparse
 import logging
+import os
 import random
 import time
 
@@ -20,6 +21,7 @@ from datasets import load_dataset
 from peft import AdaLoraConfig, TaskType, get_peft_model
 from torch.optim import AdamW
 from transformers import AutoModelForCausalLM, AutoTokenizer, get_scheduler
+
 from utils import (
     compute_kl,
     create_pku_dataloader_from_dataset,
@@ -51,9 +53,10 @@ def main(args) -> None:
 
     model.to(device)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    tokenizer.pad_token = tokenizer.eos_token
 
     # Load harmful data.
-    train_dataset = load_dataset("PKU-Alignment/PKU-SafeRLHF", split="330k_train")
+    train_dataset = load_dataset("PKU-Alignment/PKU-SafeRLHF", split="train")
     train_bad_loader = create_pku_dataloader_from_dataset(
         tokenizer, train_dataset, batch_size=args.batch_size
     )
@@ -141,7 +144,9 @@ def main(args) -> None:
 
             # Save model.
             if idx % args.save_every == 0:
-                model.save_pretrained(args.model_save_dir, from_pt=True)
+                model.save_pretrained(
+                    f"{args.model_save_dir}/checkpoint_{idx}", from_pt=True
+                )
     end_time = time.time()
     logging.info("Total time: %d sec" % (end_time - start_time))
 
@@ -149,7 +154,7 @@ def main(args) -> None:
         model = model.merge_and_unload()
 
     # Save final model.
-    model.save_pretrained(args.model_save_dir, from_pt=True)
+    model.save_pretrained(f"{args.model_save_dir}/final", from_pt=True)
     logging.info("Unlearning finished")
 
     return
@@ -213,6 +218,12 @@ if __name__ == "__main__":
         default="logs/default.log",
         help="Log file name",
     )
+    parser.add_argument(
+        "--hf_cache_dir",
+        type=str,
+        default=None,
+        help="Where to cache huggingface files",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -224,4 +235,8 @@ if __name__ == "__main__":
     )
     for arg in vars(args):
         logging.info(f"{arg}: {getattr(args, arg)}")
+
+    if args.hf_cache_dir:
+        os.environ["HF_HOME"] = args.hf_cache_dir
+
     main(args)
