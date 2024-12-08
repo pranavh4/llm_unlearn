@@ -7,3 +7,5 @@ logs/*
 data/*
 .venv/*
 .python-version
+.ipynb_checkpoints/
+results/
