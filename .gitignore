@@ -9,3 +9,4 @@ data/*
 .python-version
 .ipynb_checkpoints/
 results/
+*.csv
